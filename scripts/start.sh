@@ -27,7 +27,7 @@ find_uv_bin() {
     "$(command -v uv.exe 2>/dev/null || true)" \
     /usr/bin/uv \
     /usr/local/bin/uv \
-    "$HOME/.local/bin/uv" \
+    /root/.local/bin/uv \
     /opt/homebrew/bin/uv \
     /snap/bin/uv
   do
