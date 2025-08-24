@@ -55,8 +55,9 @@ EOF
 Description=Hanzi Similar Search (FastAPI + ChromaDB)
 After=network-online.target
 Wants=network-online.target
-User=root
 [Service]
+
+User=root
 Type=simple
 WorkingDirectory=${REPO_DIR}
 EnvironmentFile=${ENV_FILE}
