@@ -69,6 +69,7 @@ docker run --rm -p 18080:8000 \
 - `HOST=0.0.0.0`，`PORT=8000`
 - `BUILD_DB=0`：启动时是否重建向量库（设为 `1` 开启）
 - `USE_UV=auto`：uv 运行器选择（`auto` | `1` 强制 uv | `0` 强制 python）。当系统未安装 uv 时，`auto` 会自动回退到 `python`。
+  - 需要指定 uv 绝对路径时，可以设定：`UV_BIN=/absolute/path/to/uv`
 
 PowerShell 临时设置示例：
 

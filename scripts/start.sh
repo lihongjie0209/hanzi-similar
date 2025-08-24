@@ -12,13 +12,30 @@ set -eu
 : "${BUILD_DB:=0}"
 # Select runner: auto | 1 (force uv) | 0 (force python)
 : "${USE_UV:=auto}"
+:# Optional absolute path override for uv binary
+: "${UV_BIN:=}"
 
-have_uv() {
-  # try typical names/locations (Linux/macOS/Windows Git Bash)
-  if command -v uv >/dev/null 2>&1; then return 0; fi
-  if command -v uv.exe >/dev/null 2>&1; then return 0; fi
-  # common manual install path
-  if [ -x "/usr/local/bin/uv" ]; then return 0; fi
+find_uv_bin() {
+  # If UV_BIN provided and executable, honor it
+  if [ -n "$UV_BIN" ] && [ -x "$UV_BIN" ]; then
+    return 0
+  fi
+
+  # search common locations and PATH (for systemd PATH restrictions)
+  for cand in \
+    "$(command -v uv 2>/dev/null || true)" \
+    "$(command -v uv.exe 2>/dev/null || true)" \
+    /usr/bin/uv \
+    /usr/local/bin/uv \
+    "$HOME/.local/bin/uv" \
+    /opt/homebrew/bin/uv \
+    /snap/bin/uv
+  do
+    if [ -n "$cand" ] && [ -x "$cand" ]; then
+      UV_BIN="$cand"
+      return 0
+    fi
+  done
   return 1
 }
 
@@ -31,16 +48,18 @@ echo "FONTS_DIR=$FONTS_DIR"
 if [ "$BUILD_DB" = "1" ]; then
   echo "[start.sh] BUILD_DB=1 -> building vector DB..."
   if [ "$USE_UV" = "1" ]; then
-    if have_uv; then
-      uv run python advanced_vectorizer.py
+    if find_uv_bin; then
+      echo "[start.sh] using UV_BIN=$UV_BIN"
+      "$UV_BIN" run python advanced_vectorizer.py
     else
       echo "[start.sh] ERROR: USE_UV=1 but 'uv' not found in PATH." >&2
       echo "           Install uv (https://github.com/astral-sh/uv) or set USE_UV=0 to use python." >&2
       exit 1
     fi
   else
-    if have_uv && [ "$USE_UV" = "auto" ]; then
-      uv run python advanced_vectorizer.py
+    if find_uv_bin && [ "$USE_UV" = "auto" ]; then
+      echo "[start.sh] using UV_BIN=$UV_BIN"
+      "$UV_BIN" run python advanced_vectorizer.py
     else
       python advanced_vectorizer.py
     fi
@@ -55,17 +74,19 @@ fi
 # Start API
 echo "[start.sh] starting API at http://$HOST:$PORT ... (USE_UV=$USE_UV)"
 if [ "$USE_UV" = "1" ]; then
-  if have_uv; then
+  if find_uv_bin; then
+    echo "[start.sh] using UV_BIN=$UV_BIN"
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-      uv run uvicorn api.main:app --host "$HOST" --port "$PORT"
+      "$UV_BIN" run uvicorn api.main:app --host "$HOST" --port "$PORT"
   else
     echo "[start.sh] ERROR: USE_UV=1 but 'uv' not found in PATH." >&2
     exit 1
   fi
 else
-  if have_uv && [ "$USE_UV" = "auto" ]; then
+  if find_uv_bin && [ "$USE_UV" = "auto" ]; then
+    echo "[start.sh] using UV_BIN=$UV_BIN"
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-      uv run uvicorn api.main:app --host "$HOST" --port "$PORT"
+      "$UV_BIN" run uvicorn api.main:app --host "$HOST" --port "$PORT"
   else
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
       python -m uvicorn api.main:app --host "$HOST" --port "$PORT"
