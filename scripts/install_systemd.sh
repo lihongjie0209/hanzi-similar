@@ -42,6 +42,8 @@ FONTS_DIR=${REPO_DIR}/fonts
 MODEL_NAME=google/vit-base-patch16-224
 TOP_K=10
 BUILD_DB=0
+# Avoid uv cache under /root in systemd; start.sh will fall back to python
+USE_UV=0
 EOF
     chmod 0644 "$ENV_FILE"
     echo "[i] Created $ENV_FILE"
@@ -62,6 +64,10 @@ Type=simple
 WorkingDirectory=${REPO_DIR}
 EnvironmentFile=${ENV_FILE}
 Environment=PYTHONUNBUFFERED=1
+# Provide writable HOME/cache so tools won't hit /root when ProtectHome=true
+Environment=HOME=/var/lib/${SERVICE_NAME}
+Environment=XDG_CACHE_HOME=/var/lib/${SERVICE_NAME}/.cache
+Environment=UV_CACHE_DIR=/var/lib/${SERVICE_NAME}/.cache/uv
 ExecStart=/usr/bin/env sh ${REPO_DIR}/scripts/start.sh
 Restart=always
 RestartSec=3
@@ -69,6 +75,9 @@ NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
+# Let systemd create persistent writable dirs under /var
+StateDirectory=${SERVICE_NAME}
+CacheDirectory=${SERVICE_NAME}
 
 [Install]
 WantedBy=multi-user.target
