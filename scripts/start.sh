@@ -12,7 +12,7 @@ set -eu
 : "${BUILD_DB:=0}"
 # Select runner: auto | 1 (force uv) | 0 (force python)
 : "${USE_UV:=auto}"
-:# Optional absolute path override for uv binary
+# Optional absolute path override for uv binary
 : "${UV_BIN:=}"
 
 find_uv_bin() {
