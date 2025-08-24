@@ -10,6 +10,17 @@ set -eu
 : "${HOST:=0.0.0.0}"
 : "${PORT:=8000}"
 : "${BUILD_DB:=0}"
+# Select runner: auto | 1 (force uv) | 0 (force python)
+: "${USE_UV:=auto}"
+
+have_uv() {
+  # try typical names/locations (Linux/macOS/Windows Git Bash)
+  if command -v uv >/dev/null 2>&1; then return 0; fi
+  if command -v uv.exe >/dev/null 2>&1; then return 0; fi
+  # common manual install path
+  if [ -x "/usr/local/bin/uv" ]; then return 0; fi
+  return 1
+}
 
 echo "IMAGES_DIR=$IMAGES_DIR"
 echo "CHROMA_DB_PATH=$CHROMA_DB_PATH"
@@ -19,10 +30,20 @@ echo "FONTS_DIR=$FONTS_DIR"
 # Optionally (re)build the advanced vector database
 if [ "$BUILD_DB" = "1" ]; then
   echo "[start.sh] BUILD_DB=1 -> building vector DB..."
-  if command -v uv >/dev/null 2>&1; then
-    uv run python advanced_vectorizer.py
+  if [ "$USE_UV" = "1" ]; then
+    if have_uv; then
+      uv run python advanced_vectorizer.py
+    else
+      echo "[start.sh] ERROR: USE_UV=1 but 'uv' not found in PATH." >&2
+      echo "           Install uv (https://github.com/astral-sh/uv) or set USE_UV=0 to use python." >&2
+      exit 1
+    fi
   else
-    python advanced_vectorizer.py
+    if have_uv && [ "$USE_UV" = "auto" ]; then
+      uv run python advanced_vectorizer.py
+    else
+      python advanced_vectorizer.py
+    fi
   fi
 fi
 
@@ -32,11 +53,21 @@ if [ ! -f "$CHROMA_DB_PATH/chroma.sqlite3" ]; then
 fi
 
 # Start API
-echo "[start.sh] starting API at http://$HOST:$PORT ..."
-if command -v uv >/dev/null 2>&1; then
-  IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-  uv run uvicorn api.main:app --host "$HOST" --port "$PORT"
+echo "[start.sh] starting API at http://$HOST:$PORT ... (USE_UV=$USE_UV)"
+if [ "$USE_UV" = "1" ]; then
+  if have_uv; then
+    IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
+      uv run uvicorn api.main:app --host "$HOST" --port "$PORT"
+  else
+    echo "[start.sh] ERROR: USE_UV=1 but 'uv' not found in PATH." >&2
+    exit 1
+  fi
 else
-  IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-  python -m uvicorn api.main:app --host "$HOST" --port "$PORT"
+  if have_uv && [ "$USE_UV" = "auto" ]; then
+    IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
+      uv run uvicorn api.main:app --host "$HOST" --port "$PORT"
+  else
+    IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
+      python -m uvicorn api.main:app --host "$HOST" --port "$PORT"
+  fi
 fi
