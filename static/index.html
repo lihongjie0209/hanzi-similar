@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>相似汉字检索</title>
+  <link rel="stylesheet" href="/ui/style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero__inner container">
+        <div class="brand">相似汉字检索</div>
+        <form id="searchForm" class="search">
+          <div class="search__group">
+            <div class="input-wrap">
+              <span class="input-icon">🔍</span>
+              <input id="query" type="text" placeholder="搜索汉字或 Unicode（行 / U+884C / 884C）" maxlength="10" required />
+            </div>
+            <div class="input-compact">
+              <label for="topk">TopK</label>
+              <input id="topk" type="number" min="1" max="50" value="12" />
+            </div>
+            <button class="btn btn-primary" type="submit">查询</button>
+          </div>
+          <div id="status" class="status"></div>
+        </form>
+      </div>
+    </header>
+
+  <main class="container wide">
+      <section class="panel" id="resultsPanel" hidden>
+        <div class="panel__head">
+          <div class="panel__title">搜索结果</div>
+          <div class="panel__meta" id="queryPreview"></div>
+        </div>
+        <div id="results" class="grid"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container muted">图片来自 /images；接口 /search/char 与 /search/unicode</div>
+    </footer>
+  </div>
+
+  <script>
+    const $form = document.getElementById('searchForm');
+    const $q = document.getElementById('query');
+    const $k = document.getElementById('topk');
+    const $res = document.getElementById('results');
+    const $status = document.getElementById('status');
+    const $preview = document.getElementById('queryPreview');
+
+  function imgUrlFromHex(hex){ return `/glyph/svg/${hex}`; }
+    function toHex(v){ return String(v||'').toUpperCase().replace(/^U\+/,''); }
+    function toSimPercent(distance){
+      if(typeof distance !== 'number') return '';
+      const p = Math.max(0, Math.min(1, 1 - distance));
+      return (p*100).toFixed(1) + '%';
+    }
+    function copy(text){
+      navigator.clipboard?.writeText(text).catch(()=>{});
+    }
+
+    function render(items, query, qHex){
+      $res.innerHTML = '';
+      $preview.innerHTML = query ? `<span class="glyph">${query}</span>` : '';
+      const hexQuery = qHex || (query && query.length===1 ? query.codePointAt(0).toString(16).toUpperCase().padStart(4,'0') : null);
+
+      // Prepend the searched character as the first highlighted card
+      if(hexQuery){
+        const qUnicode = 'U+' + hexQuery;
+        const qUrl = imgUrlFromHex(hexQuery);
+        const qCard = document.createElement('div');
+        qCard.className = 'card query';
+        qCard.innerHTML = `
+          <div class="thumb">
+            <img src="${qUrl}" alt="${query||'?'}" onerror="this.style.display='none'" />
+          </div>
+          <div class="code-line">
+            <div class="char">${query||'?'}<span class="muted sm">${qUnicode}</span></div>
+            <span class="badge">查询字</span>
+          </div>
+          <div class="muted sm">这是查询的字</div>
+        `;
+        $res.appendChild(qCard);
+      }
+
+      const list = (items||[]).filter(it => !hexQuery || toHex(it.unicode) !== hexQuery);
+      if(list.length === 0){
+        $res.innerHTML += '<div class="empty">没有结果</div>';
+      }
+      for(const item of list){
+        const hex = toHex(item.unicode);
+        const url = imgUrlFromHex(hex);
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="thumb">
+            <img src="${url}" alt="${item.char||'?'}" onerror="this.style.display='none'" />
+          </div>
+          <div class="code-line">
+            <div class="char">${item.char||'?'}<span class="muted sm">${item.unicode||''}</span></div>
+            <button class="btn btn-ghost sm" title="复制 Unicode" data-copy="${item.unicode||''}">复制</button>
+          </div>
+          <div class="muted sm">相似度：${toSimPercent(item.distance)} <span class="sep">·</span> 距离：${typeof item.distance==='number'? item.distance.toFixed(4): ''}</div>
+        `;
+        $res.appendChild(card);
+      }
+      $res.querySelectorAll('[data-copy]').forEach(btn=>{
+        btn.addEventListener('click', ()=> copy(btn.getAttribute('data-copy')));
+      });
+      // Reveal results panel and move search bar to top like Google
+      document.body.classList.add('has-results');
+      document.getElementById('resultsPanel').hidden = false;
+    }
+
+    async function callApiChar(ch, topk){
+      const body = JSON.stringify({ char: ch, top_k: Number(topk)||12 });
+      const r = await fetch('/search/char', { method:'POST', headers:{'Content-Type':'application/json'}, body });
+      if(!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    async function callApiUnicode(hex, topk){
+      const body = JSON.stringify({ unicode: hex, top_k: Number(topk)||12 });
+      const r = await fetch('/search/unicode', { method:'POST', headers:{'Content-Type':'application/json'}, body });
+      if(!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    $form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const q = $q.value.trim();
+      const topk = $k.value;
+      $status.classList.remove('err');
+      $status.textContent = '查询中…';
+      $res.classList.add('loading');
+      try{
+        let resp;
+        const upper = q.toUpperCase();
+        let qHexForUI = null;
+        if(/^U\+[0-9A-F]+$/.test(upper) || /^[0-9A-F]+$/.test(upper)){
+          const hex = upper.replace(/^U\+/, '');
+          qHexForUI = hex;
+          resp = await callApiUnicode(hex, topk);
+        }else if(q.length===1){
+          qHexForUI = q.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
+          resp = await callApiChar(q, topk);
+        }else{
+          throw new Error('请输入单个汉字或 Unicode');
+        }
+        render(resp.results||[], resp.query||q, qHexForUI);
+        $status.textContent = '';
+      }catch(err){
+        console.error(err);
+        $res.innerHTML = `<div class=\"empty\">请求失败：${String(err)}</div>`;
+        $status.textContent = '请求失败';
+        $status.classList.add('err');
+        document.body.classList.add('has-results');
+        document.getElementById('resultsPanel').hidden = false;
+      }finally{
+        $res.classList.remove('loading');
+      }
+    });
+  </script>
+</body>
+</html>
