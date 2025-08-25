@@ -43,11 +43,10 @@ COPY pyproject.toml ./
 RUN uv pip install --system -r pyproject.toml
 
 
-COPY scripts ./scripts
-
 # Make models dir, pre-download model at build time to bake into the image
+COPY download_model.py ./download_model.py
 RUN mkdir -p "$TRANSFORMERS_CACHE" && \
-    python scripts/download_model.py --model "$MODEL_NAME" --cache-dir "$TRANSFORMERS_CACHE"
+    python download_model.py --model "$MODEL_NAME" --cache-dir "$TRANSFORMERS_CACHE"
 
 
 # App data: include the prebuilt ChromaDB inside the image
@@ -66,4 +65,4 @@ COPY . .
 EXPOSE 8000
 
 # Runtime command (can override with docker run ...)
-CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "api_main:app", "--host", "0.0.0.0", "--port", "8000"]
