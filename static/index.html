@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>相似汉字检索</title>
   <link rel="stylesheet" href="/ui/style.css" />
+  <style>
+    /* Use system/browser fonts to render glyphs; no server SVGs */
+    .thumb { display:flex; align-items:center; justify-content:center; background:#fff; }
+    .thumb .glyph { font-size: 72px; line-height: 1; }
+    /* Reasonable CJK/system font stack */
+    .glyph, .char { font-family:
+      system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Noto Sans CJK SC,
+      Noto Serif CJK SC, PingFang SC, Microsoft YaHei, Hiragino Sans GB,
+      Source Han Serif SC, Source Han Sans SC, SimSun, SimHei, serif;
+    }
+  .badge.warn { background: #fff3cd; color: #8a6d3b; border: 1px solid #f0e1a6; }
+  </style>
 </head>
 <body>
   <div class="page">
@@ -51,7 +63,39 @@
     const $status = document.getElementById('status');
     const $preview = document.getElementById('queryPreview');
 
+  function charFromHex(hex){
+      try { return String.fromCodePoint(parseInt(hex, 16)); } catch { return '?'; }
+    }
   function imgUrlFromHex(hex){ return `/glyph/svg/${hex}`; }
+  const FONT_STACK = "system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Noto Sans CJK SC, Noto Serif CJK SC, PingFang SC, Microsoft YaHei, Hiragino Sans GB, Source Han Serif SC, Source Han Sans SC, SimSun, SimHei, serif";
+  const glyphDetector = (() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    function sig(ch){
+      ctx.clearRect(0,0,64,64);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,64,64);
+      ctx.fillStyle = '#000';
+      ctx.textBaseline = 'top';
+      ctx.font = '48px ' + FONT_STACK;
+      try { ctx.fillText(ch, 0, 0); } catch {}
+      const data = ctx.getImageData(0,0,64,64).data;
+      let s = 2166136261 >>> 0; // FNV-like
+      for(let i=0; i<data.length; i+=16){ s ^= data[i]; s = (s * 16777619) >>> 0; }
+      return s >>> 0;
+    }
+    let tofuSig = null;
+    return {
+      canRender(ch){
+        if(!ch || ch.length === 0) return false;
+        try {
+          if(tofuSig == null) tofuSig = sig('\uFFFD');
+          return sig(ch) !== tofuSig;
+        } catch { return true; }
+      }
+    };
+  })();
     function toHex(v){ return String(v||'').toUpperCase().replace(/^U\+/,''); }
     function toSimPercent(distance){
       if(typeof distance !== 'number') return '';
@@ -66,24 +110,33 @@
       $res.innerHTML = '';
       $preview.innerHTML = query ? `<span class="glyph">${query}</span>` : '';
       const hexQuery = qHex || (query && query.length===1 ? query.codePointAt(0).toString(16).toUpperCase().padStart(4,'0') : null);
+      let usedServerSVG = false;
 
       // Prepend the searched character as the first highlighted card
       if(hexQuery){
         const qUnicode = 'U+' + hexQuery;
-        const qUrl = imgUrlFromHex(hexQuery);
+        const qChar = query && query.length===1 ? query : charFromHex(hexQuery);
         const qCard = document.createElement('div');
         qCard.className = 'card query';
         qCard.innerHTML = `
-          <div class="thumb">
-            <img src="${qUrl}" alt="${query||'?'}" onerror="this.style.display='none'" />
-          </div>
+          <div class="thumb"></div>
           <div class="code-line">
-            <div class="char">${query||'?'}<span class="muted sm">${qUnicode}</span></div>
+            <div class="char">${qChar||'?'}<span class="muted sm">${qUnicode}</span></div>
             <span class="badge">查询字</span>
           </div>
           <div class="muted sm">这是查询的字</div>
         `;
         $res.appendChild(qCard);
+        const t = qCard.querySelector('.thumb');
+        if(glyphDetector.canRender(qChar)){
+          t.innerHTML = `<div class="glyph" aria-hidden="true">${qChar||'?'}</div>`;
+        }else{
+          const url = imgUrlFromHex(hexQuery);
+          t.innerHTML = `<img src="${url}" alt="${qChar||'?'}" />`;
+          const codeLine = qCard.querySelector('.code-line');
+          codeLine.insertAdjacentHTML('beforeend', `<span class="badge warn" title="浏览器无法渲染，使用服务端SVG">服务端渲染</span>`);
+          usedServerSVG = true;
+        }
       }
 
       const list = (items||[]).filter(it => !hexQuery || toHex(it.unicode) !== hexQuery);
@@ -92,20 +145,35 @@
       }
       for(const item of list){
         const hex = toHex(item.unicode);
-        const url = imgUrlFromHex(hex);
+        const glyphChar = (item.char && item.char.length===1) ? item.char : charFromHex(hex);
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <div class="thumb">
-            <img src="${url}" alt="${item.char||'?'}" onerror="this.style.display='none'" />
-          </div>
+          <div class="thumb"></div>
           <div class="code-line">
-            <div class="char">${item.char||'?'}<span class="muted sm">${item.unicode||''}</span></div>
+            <div class="char">${glyphChar||'?'}<span class="muted sm">${item.unicode||''}</span></div>
             <button class="btn btn-ghost sm" title="复制 Unicode" data-copy="${item.unicode||''}">复制</button>
           </div>
           <div class="muted sm">相似度：${toSimPercent(item.distance)} <span class="sep">·</span> 距离：${typeof item.distance==='number'? item.distance.toFixed(4): ''}</div>
         `;
         $res.appendChild(card);
+        const t = card.querySelector('.thumb');
+        if(glyphDetector.canRender(glyphChar)){
+          t.innerHTML = `<div class="glyph" aria-hidden="true">${glyphChar||'?'}</div>`;
+        }else{
+          const url = imgUrlFromHex(hex);
+          t.innerHTML = `<img src="${url}" alt="${glyphChar||'?'}" />`;
+          const codeLine = card.querySelector('.code-line');
+          codeLine.insertAdjacentHTML('beforeend', `<span class="badge warn" title="浏览器无法渲染，使用服务端SVG">服务端渲染</span>`);
+          usedServerSVG = true;
+        }
+      }
+      // Show a notice if any glyphs required server-side rendering
+      if(usedServerSVG){
+        $status.textContent = '部分字符使用服务端渲染';
+        $status.classList.remove('err');
+      } else {
+        $status.textContent = '';
       }
       $res.querySelectorAll('[data-copy]').forEach(btn=>{
         btn.addEventListener('click', ()=> copy(btn.getAttribute('data-copy')));

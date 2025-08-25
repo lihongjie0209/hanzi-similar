@@ -77,7 +77,7 @@ if [ "$USE_UV" = "1" ]; then
   if find_uv_bin; then
     echo "[start.sh] using UV_BIN=$UV_BIN"
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-      "$UV_BIN" run uvicorn api.main:app --host "$HOST" --port "$PORT"
+  "$UV_BIN" run uvicorn api_main:app --host "$HOST" --port "$PORT"
   else
     echo "[start.sh] ERROR: USE_UV=1 but 'uv' not found in PATH." >&2
     exit 1
@@ -86,9 +86,9 @@ else
   if find_uv_bin && [ "$USE_UV" = "auto" ]; then
     echo "[start.sh] using UV_BIN=$UV_BIN"
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-      "$UV_BIN" run uvicorn api.main:app --host "$HOST" --port "$PORT"
+  "$UV_BIN" run uvicorn api_main:app --host "$HOST" --port "$PORT"
   else
     IMAGES_DIR="$IMAGES_DIR" CHROMA_DB_PATH="$CHROMA_DB_PATH" MODEL_NAME="$MODEL_NAME" TOP_K="$TOP_K" FONTS_DIR="$FONTS_DIR" \
-      python -m uvicorn api.main:app --host "$HOST" --port "$PORT"
+  python -m uvicorn api_main:app --host "$HOST" --port "$PORT"
   fi
 fi
