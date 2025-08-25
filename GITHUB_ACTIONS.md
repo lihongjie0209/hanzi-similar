@@ -32,6 +32,24 @@ The workflow will trigger on:
 - **Push to master/main branch**: Builds and pushes with `latest` tag
 - **Push tags starting with 'v'**: Builds and pushes with version tags (e.g., `v1.0.0`)
 - **Pull requests**: Builds only (doesn't push to registry)
+- **Manual trigger**: Can be run manually with custom options
+
+#### Manual Workflow Dispatch
+
+You can manually trigger the workflow from GitHub:
+
+1. Go to your repository → **Actions** tab
+2. Select "Build and Publish Docker Image" workflow
+3. Click **Run workflow** button
+4. Configure options:
+   - **Custom Docker tag**: Optional custom tag (default: `manual`)
+   - **Target platforms**: Choose architecture (`linux/amd64,linux/arm64`, `linux/amd64`, or `linux/arm64`)
+   - **Push to Docker Hub**: Whether to push the built image (default: `true`)
+
+This is useful for:
+- Testing builds without creating commits/tags
+- Building specific platform images
+- Creating custom tagged releases
 
 ### 4. Multi-Architecture Support
 
