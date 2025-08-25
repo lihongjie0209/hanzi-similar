@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  hanzi-similar:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Model configuration
+      - MODEL_NAME=google/vit-base-patch16-224
+      - TRANSFORMERS_CACHE=/models
+      
+      # Database configuration
+      - CHROMA_DB_PATH=/app/chroma_db
+      - FONTS_DIR=/app/fonts
+      
+      # API configuration
+      - TOP_K=10
+      
+    volumes:
+      # Optional: mount external chroma_db if you want to persist data
+      # - ./chroma_db:/app/chroma_db
+      
+      # Optional: mount external fonts directory
+      # - ./fonts:/app/fonts
+      
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add nginx as reverse proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - hanzi-similar
+  #   restart: unless-stopped

@@ -5,10 +5,49 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    # 基础运行时依赖
+    "fastapi>=0.116.1",
+    "uvicorn>=0.35.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# 明确指定Python模块，避免setuptools自动发现数据目录
+py-modules = [
+    "api_main", 
+    "vector_db", 
+    "svg_renderer", 
+    "advanced_vectorizer", 
+    "download_model", 
+    "generate_hanzi_images", 
+    "generate_hanzi_svgs", 
+    "hanzi_search", 
+    "main", 
+    "query_embedding", 
+    "search_similar", 
+    "vectorize_images", 
+    "check_codepoint_coverage"
+]
+
+[project.optional-dependencies]
+prod = [
+    "chromadb>=1.0.20",
+    "fastapi>=0.116.1",
+    "fonttools>=4.59.1",
+    "gunicorn>=23.0.0",
+    "numpy>=2.3.2",
+    "uvicorn>=0.35.0",
+]
+
+dev = [
     "chromadb>=1.0.20",
     "faiss-cpu>=1.12.0",
     "fastapi>=0.116.1",
     "fonttools>=4.59.1",
+    "gunicorn>=23.0.0",
     "numpy>=2.3.2",
     "opencv-python>=4.11.0.86",
     "pillow>=11.3.0",

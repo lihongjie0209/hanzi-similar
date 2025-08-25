@@ -1,3 +1,49 @@
-fonts/
+# Development and build artifacts
+.git/
+.gitignore
 .idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Local development files
+.env
+.env.local
+*.log
+
+# Documentation and scripts
+README.md
+DEPLOYMENT.md
+start-prod.sh
+start-prod.bat
+start-api.sh
+
+# Backup and temporary files
+*~
+*.bak
+*.tmp
+../hanzi-similar-backup/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Keep these important directories/files:
+# fonts/ - needed for SVG rendering
+# chroma_db/ - needed for vector database
+# static/ - needed for web UI
+# scripts/ - may contain useful utilities
