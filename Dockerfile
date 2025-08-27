@@ -54,9 +54,7 @@ COPY static ./static
 # Copy scripts directory if it exists
 COPY scripts ./scripts
 
-# Copy and set up entrypoint script with proper permissions
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
+
 
 # Ensure proper permissions and verify chroma_db directory
 RUN echo "=== Checking chroma_db after copy ===" && \
@@ -75,6 +73,9 @@ RUN echo "=== Checking chroma_db after copy ===" && \
 
 # Expose default port
 EXPOSE 8000
+# Copy and set up entrypoint script with proper permissions
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Set entrypoint
 ENTRYPOINT ["./docker-entrypoint.sh"]
