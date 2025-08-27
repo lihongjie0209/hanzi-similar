@@ -77,6 +77,45 @@ services:
 - **架构**: `linux/amd64`
 - **包含**: 预训练模型、字体文件、向量数据库
 
+## 构建脚本
+
+项目提供了自动化的Docker构建和推送脚本：
+
+### PowerShell Script (Windows): `build-docker.ps1`
+
+```powershell
+# 仅构建（不推送）
+.\build-docker.ps1
+
+# 构建并推送到仓库
+.\build-docker.ps1 -Push
+
+# 自定义仓库
+.\build-docker.ps1 -Push -Registry "your-registry" -ImageName "your-image"
+```
+
+### Bash Script (Linux/macOS): `build-docker.sh`
+
+```bash
+# 仅构建（不推送）
+./build-docker.sh
+
+# 构建并推送到仓库
+./build-docker.sh --push
+
+# 自定义仓库
+./build-docker.sh --push --registry "your-registry" --image-name "your-image"
+```
+
+### 脚本特性
+
+- 🏷️ **自动Git标签检测**: 使用当前git tag作为版本号
+- 🔄 **回退到最新标签**: 如果HEAD不在tag上，使用最新可用标签
+- 🐳 **Docker多标签**: 创建版本特定标签和`latest`标签
+- 🚀 **可选推送**: 可选择本地构建或推送到仓库
+- 🎨 **彩色输出**: 易于阅读的控制台输出和状态指示器
+- ⚙️ **可配置**: 可自定义仓库和镜像名称
+
 ## 源码
 
 - **GitHub**: https://github.com/lihongjie0209/hanzi-similar

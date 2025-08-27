@@ -153,6 +153,58 @@ bash scripts/install_systemd.sh uninstall
 - 默认使用仓库内 `scripts/start.sh` 启动；修改环境变量后执行 `sudo systemctl restart hanzi-similar`
 - 查看日志：`journalctl -u hanzi-similar -f`
 
+## Docker 构建脚本
+
+项目提供了自动化的 Docker 构建和推送脚本，使用 git tag 作为版本号：
+
+### Windows 批处理脚本
+
+```batch
+# 仅构建（不推送）
+.\build-docker.bat
+
+# 构建并推送到 Docker Hub
+.\build-docker.bat --push
+```
+
+### PowerShell 脚本
+
+```powershell
+# 仅构建（不推送）
+.\build-docker.ps1
+
+# 构建并推送到 Docker Hub
+.\build-docker.ps1 -Push
+```
+
+### Bash 脚本（Linux/macOS）
+
+```bash
+# 仅构建（不推送）
+./build-docker.sh
+
+# 构建并推送到 Docker Hub
+./build-docker.sh --push
+```
+
+### Make 风格脚本
+
+```batch
+# 使用 make.bat 简化操作
+.\make.bat build    # 构建镜像
+.\make.bat push     # 构建并推送
+.\make.bat run      # 本地运行 API
+.\make.bat test     # 运行测试
+.\make.bat clean    # 清理镜像
+```
+
+### 脚本特性
+- 🏷️ **自动 Git 标签检测**: 使用当前 git tag 作为 Docker 镜像版本
+- 🔄 **回退到最新标签**: 如果 HEAD 不在 tag 上，使用最新可用标签
+- 🐳 **多标签支持**: 同时创建版本特定标签和 `latest` 标签
+- 🚀 **可选推送**: 可选择仅构建或同时推送到 Docker Hub
+- ⚠️ **错误处理**: 包含完整的错误检查和友好的错误提示
+
 ## 发布到 GitHub（可选）
 使用 GitHub CLI（`gh`）：
 
