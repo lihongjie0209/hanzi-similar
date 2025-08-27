@@ -59,8 +59,7 @@ RUN chmod -R 755 /app/chroma_db && \
 
 
 
-# Copy remaining API files
-COPY api ./api
+# Copy scripts directory if it exists
 COPY scripts ./scripts
 
 # Expose default port
