@@ -62,6 +62,9 @@ RUN chmod -R 755 /app/chroma_db && \
 # Copy scripts directory if it exists
 COPY scripts ./scripts
 
+
+COPY static ./static
+
 # Expose default port
 EXPOSE 8000
 
