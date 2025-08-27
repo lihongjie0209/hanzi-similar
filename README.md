@@ -7,8 +7,9 @@ English: A FastAPI service to render Chinese characters, embed with ViT/CLIP, an
 ## 📋 API 文档
 
 - **🔗 OpenAPI 规范**: [openapi.yaml](./openapi.yaml) 
-- **📖 在线文档**: [Swagger UI](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/lihongjie0209/hanzi-similar/master/openapi.yaml)
+- **📖 在线文档**: [Swagger UI 预览](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/lihongjie0209/hanzi-similar/master/openapi.yaml)
 - **🌐 本地文档**: 启动服务后访问 `http://localhost:8000/docs`
+- **📚 使用指南**: [API_DOCS.md](./API_DOCS.md) - 包含测试示例和工具推荐
 
 ## 功能特性 Similar Search | 相似汉字搜索
 
