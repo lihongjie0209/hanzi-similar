@@ -61,7 +61,7 @@ USE_UV=0 sh scripts/start.sh
 ```sh
 docker build -t hanzi-similar:latest .
 # 如果镜像未包含 fonts/chroma_db，请以只读或读写方式挂载
-docker run --rm -p 18080:8000 hanzi-similar:latest
+docker run --rm -p 8000:8000 hanzi-similar:latest
 ```
 
 打开页面：http://127.0.0.1:8000/ui/
