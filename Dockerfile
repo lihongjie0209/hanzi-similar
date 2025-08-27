@@ -21,13 +21,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps (git for transformers snapshots), libgl for pillow if needed
+# System deps - minimal for fonttools
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
-        libglib2.0-0 \
-        libgl1 \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* || true
 
 # Upgrade pip
 RUN pip install --upgrade pip
@@ -51,9 +48,9 @@ COPY chroma_db ./chroma_db
 # Copy fonts directory for SVG rendering
 COPY fonts ./fonts
 
-# Copy and set up entrypoint script
-COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+# Copy and set up entrypoint script with proper permissions
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Ensure proper permissions for chroma_db directory
 RUN chmod -R 755 /app/chroma_db && \
@@ -62,8 +59,9 @@ RUN chmod -R 755 /app/chroma_db && \
 
 
 
-# App code
-COPY . .
+# Copy remaining API files
+COPY api ./api
+COPY scripts ./scripts
 
 # Expose default port
 EXPOSE 8000

@@ -94,6 +94,39 @@ class ChromaVectorDB:
 
         return similar_images
 
+    def get_embedding_by_id(self, unicode_id: str):
+        """根据Unicode ID获取向量"""
+        try:
+            result = self.collection.get(
+                ids=[unicode_id],
+                include=["embeddings", "metadatas"]
+            )
+            
+            if not result["ids"]:
+                return None
+                
+            embedding = np.array(result["embeddings"][0])
+            metadata = result["metadatas"][0] if result["metadatas"] else {}
+            
+            return {
+                "id": unicode_id,
+                "embedding": embedding,
+                "metadata": metadata
+            }
+        except Exception as e:
+            print(f"获取embedding失败 {unicode_id}: {e}")
+            return None
+
+    def search_similar_by_id(self, unicode_id: str, top_k: int = 10):
+        """根据Unicode ID查找相似图像"""
+        # 先获取指定ID的向量
+        target_data = self.get_embedding_by_id(unicode_id)
+        if not target_data:
+            return []
+            
+        # 使用该向量搜索相似项
+        return self.search_similar(target_data["embedding"], top_k)
+
     def get_stats(self):
         """获取数据库统计信息"""
         count = self.collection.count()
