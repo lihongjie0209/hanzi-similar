@@ -10,6 +10,7 @@ ARG TRANSFORMERS_CACHE=/models
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     \
     # Default model and cache (can still be overridden at runtime)
     MODEL_NAME=${MODEL_NAME} \
@@ -26,8 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
     && rm -rf /var/lib/apt/lists/* || true
 
-# Upgrade pip
-RUN pip install --upgrade pip
+# NOTE: Skip upgrading pip. Base image already includes a modern pip and
+# upgrading under QEMU (arm64 on amd64) is slow and unnecessary.
 
 # --- Python deps via pip + pyproject.toml (prod dependencies only) ---
 # Use pyproject.toml as the single source of truth for dependency management
@@ -37,7 +38,9 @@ COPY pyproject.toml ./
 COPY *.py ./
 
 # Install only production dependencies to keep image lean
-RUN pip install -e ".[prod]"
+# Use BuildKit cache for pip to speed up repeated builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e ".[prod]"
 
 
 
