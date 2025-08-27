@@ -82,7 +82,7 @@ ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # Runtime command using Gunicorn for production
 CMD ["gunicorn", "api_main:app", \
-     "--workers", "4", \
+     "--workers", "1", \
      "--worker-class", "uvicorn.workers.UvicornWorker", \
      "--bind", "0.0.0.0:8000", \
      "--access-logfile", "-", \
