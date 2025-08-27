@@ -1,5 +1,17 @@
 # Hanzi Similar Search | 相似汉字搜索
 
+一个可本地运行/容器化的检索服务：将汉字渲染为图像，提取视觉向量，在向量库中检索"长得像"的字；提供 FastAPI 接口与简洁的 Web UI。
+
+English: A FastAPI service to render Chinese characters, embed with ViT/CLIP, and search visually similar glyphs. Includes a clean web UI and SVG glyph rendering from local fonts.
+
+## 📋 API 文档
+
+- **🔗 OpenAPI 规范**: [openapi.yaml](./openapi.yaml) 
+- **📖 在线文档**: [Swagger UI](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/lihongjie0209/hanzi-similar/master/openapi.yaml)
+- **🌐 本地文档**: 启动服务后访问 `http://localhost:8000/docs`
+
+## 功能特性 Similar Search | 相似汉字搜索
+
 一个可本地运行/容器化的检索服务：将汉字渲染为图像，提取视觉向量，在向量库中检索“长得像”的字；提供 FastAPI 接口与简洁的 Web UI。
 
 English: A FastAPI service to render Chinese characters, embed with ViT/CLIP, and search visually similar glyphs. Includes a clean web UI and SVG glyph rendering from local fonts.

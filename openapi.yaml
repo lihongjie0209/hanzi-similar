@@ -1,0 +1,461 @@
+openapi: 3.0.3
+info:
+  title: Hanzi Similarity API
+  description: |
+    一个基于视觉相似度的汉字检索API服务
+    
+    ## 功能特性
+    - 🔍 按字符搜索相似汉字
+    - 🔢 按Unicode编码搜索
+    - 📦 批量查询支持
+    - 🎨 SVG字形渲染
+    - 📊 相似度百分比计算
+    
+    ## 技术架构
+    - **图像嵌入**: ViT (Vision Transformer) 模型
+    - **向量数据库**: ChromaDB
+    - **字体渲染**: 本地字体文件
+    - **Web框架**: FastAPI
+    
+    ## 数据来源
+    本API包含约27,989个CJK字符的预计算向量，覆盖常用汉字、繁体字、日文假名等。
+    
+  version: 0.3.0
+  contact:
+    name: GitHub Repository
+    url: https://github.com/lihongjie0209/hanzi-similar
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: 本地开发服务器
+  - url: https://your-domain.com
+    description: 生产环境
+
+paths:
+  /:
+    get:
+      summary: 重定向到Web UI
+      description: 自动重定向到用户界面
+      responses:
+        '302':
+          description: 重定向到 /ui
+          
+  /healthz:
+    get:
+      summary: 健康检查
+      description: 检查API服务状态和向量数据库连接
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  total_images:
+                    type: integer
+                    example: 27989
+        '503':
+          description: 服务不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search/char:
+    post:
+      summary: 按字符搜索相似汉字
+      description: |
+        输入一个汉字字符，返回视觉上最相似的字符列表。
+        
+        **示例用法**:
+        - 搜索"中"字的相似字符
+        - 查找繁简体对应关系
+        - 发现形近字
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryChar'
+            examples:
+              basic:
+                summary: 基本查询
+                value:
+                  char: "中"
+                  top_k: 5
+              advanced:
+                summary: 更多结果
+                value:
+                  char: "龍"
+                  top_k: 20
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              examples:
+                success:
+                  summary: 成功响应示例
+                  value:
+                    query: "中"
+                    results:
+                      - char: "中"
+                        unicode: "4E2D"
+                        distance: 0.0
+                        similarity: 100.0
+                      - char: "忠"
+                        unicode: "5FE0"
+                        distance: 0.2
+                        similarity: 80.0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search/unicode:
+    post:
+      summary: 按Unicode编码搜索相似汉字
+      description: |
+        输入Unicode编码（如"4E2D"或"U+4E2D"），返回相似字符。
+        
+        **支持格式**:
+        - "4E2D" (十六进制)
+        - "U+4E2D" (标准Unicode格式)
+        - "u+4e2d" (小写)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryUnicode'
+            examples:
+              hex_format:
+                summary: 十六进制格式
+                value:
+                  unicode: "4E2D"
+                  top_k: 5
+              unicode_format:
+                summary: Unicode格式
+                value:
+                  unicode: "U+9F8D"
+                  top_k: 10
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Unicode格式错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 找不到对应的字符
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search/batch/char:
+    post:
+      summary: 批量字符搜索
+      description: |
+        一次性搜索多个字符的相似汉字，提高查询效率。
+        
+        **适用场景**:
+        - 批量处理文本中的汉字
+        - 字典应用的批量查询
+        - 数据分析和研究
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchQueryChar'
+            examples:
+              multiple_chars:
+                summary: 多字符查询
+                value:
+                  chars: ["中", "国", "人"]
+                  top_k: 3
+      responses:
+        '200':
+          description: 批量搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchSearchResponse'
+              examples:
+                batch_success:
+                  summary: 批量搜索结果
+                  value:
+                    queries: ["中", "国"]
+                    results:
+                      - - char: "中"
+                          unicode: "4E2D"
+                          distance: 0.0
+                          similarity: 100.0
+                        - char: "忠"
+                          unicode: "5FE0"
+                          distance: 0.2
+                          similarity: 80.0
+                      - - char: "国"
+                          unicode: "56FD"
+                          distance: 0.0
+                          similarity: 100.0
+                        - char: "國"
+                          unicode: "570B"
+                          distance: 0.15
+                          similarity: 85.0
+
+  /search/batch/unicode:
+    post:
+      summary: 批量Unicode搜索
+      description: |
+        批量处理Unicode编码列表，返回每个编码对应的相似字符。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchQueryUnicode'
+            examples:
+              unicode_list:
+                summary: Unicode列表查询
+                value:
+                  unicodes: ["4E2D", "U+56FD", "u+4eba"]
+                  top_k: 5
+      responses:
+        '200':
+          description: 批量搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchSearchResponse'
+
+  /glyph/svg/{uhex}:
+    get:
+      summary: 生成字符SVG图像
+      description: |
+        根据Unicode编码生成清晰的SVG字形图像。
+        
+        **特点**:
+        - 矢量格式，无锯齿
+        - 使用本地高质量字体
+        - 支持CJK扩展字符集
+        - 实时渲染
+      parameters:
+        - name: uhex
+          in: path
+          required: true
+          description: Unicode十六进制编码（如"4E2D"）
+          schema:
+            type: string
+            pattern: '^[0-9A-Fa-f]+$'
+          examples:
+            chinese:
+              summary: 中文字符
+              value: "4E2D"
+            traditional:
+              summary: 繁体字符
+              value: "9F8D"
+            rare:
+              summary: 生僻字
+              value: "2E80"
+      responses:
+        '200':
+          description: SVG图像生成成功
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+              examples:
+                svg_output:
+                  summary: SVG输出示例
+                  value: |
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                      <text x="50" y="50" font-family="..." font-size="80" text-anchor="middle">中</text>
+                    </svg>
+        '400':
+          description: Unicode格式错误
+        '404':
+          description: 字符不存在或无法渲染
+        '503':
+          description: SVG渲染服务不可用
+
+components:
+  schemas:
+    QueryChar:
+      type: object
+      required:
+        - char
+      properties:
+        char:
+          type: string
+          description: 要搜索的汉字字符
+          maxLength: 1
+          example: "中"
+        top_k:
+          type: integer
+          description: 返回结果数量（默认10）
+          minimum: 1
+          maximum: 100
+          default: 10
+          example: 5
+
+    QueryUnicode:
+      type: object
+      required:
+        - unicode
+      properties:
+        unicode:
+          type: string
+          description: Unicode编码（支持"4E2D"或"U+4E2D"格式）
+          pattern: '^([Uu]\+)?[0-9A-Fa-f]+$'
+          example: "4E2D"
+        top_k:
+          type: integer
+          description: 返回结果数量（默认10）
+          minimum: 1
+          maximum: 100
+          default: 10
+          example: 5
+
+    BatchQueryChar:
+      type: object
+      required:
+        - chars
+      properties:
+        chars:
+          type: array
+          description: 要搜索的字符列表
+          items:
+            type: string
+            maxLength: 1
+          minItems: 1
+          maxItems: 50
+          example: ["中", "国", "人"]
+        top_k:
+          type: integer
+          description: 每个字符返回的结果数量
+          minimum: 1
+          maximum: 100
+          default: 10
+          example: 3
+
+    BatchQueryUnicode:
+      type: object
+      required:
+        - unicodes
+      properties:
+        unicodes:
+          type: array
+          description: Unicode编码列表
+          items:
+            type: string
+            pattern: '^([Uu]\+)?[0-9A-Fa-f]+$'
+          minItems: 1
+          maxItems: 50
+          example: ["4E2D", "U+56FD", "4EBA"]
+        top_k:
+          type: integer
+          description: 每个编码返回的结果数量
+          minimum: 1
+          maximum: 100
+          default: 10
+          example: 5
+
+    ResultItem:
+      type: object
+      properties:
+        char:
+          type: string
+          description: 相似的汉字字符
+          example: "中"
+        unicode:
+          type: string
+          description: Unicode十六进制编码
+          example: "4E2D"
+        distance:
+          type: number
+          format: float
+          description: 向量距离（0-2之间，越小越相似）
+          minimum: 0
+          maximum: 2
+          example: 0.15
+        similarity:
+          type: number
+          format: float
+          description: 相似度百分比（0-100）
+          minimum: 0
+          maximum: 100
+          example: 85.0
+
+    SearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: 查询的字符或Unicode
+          example: "中"
+        results:
+          type: array
+          description: 相似字符列表（按相似度排序）
+          items:
+            $ref: '#/components/schemas/ResultItem'
+
+    BatchSearchResponse:
+      type: object
+      properties:
+        queries:
+          type: array
+          description: 查询的字符列表
+          items:
+            type: string
+          example: ["中", "国"]
+        results:
+          type: array
+          description: 每个查询对应的结果列表
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/ResultItem'
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: 错误详细信息
+          example: "Vector database is empty"
+
+tags:
+  - name: Search
+    description: 汉字相似度搜索相关接口
+  - name: Batch
+    description: 批量查询接口
+  - name: Rendering
+    description: 字形渲染服务
+  - name: Health
+    description: 系统健康检查
