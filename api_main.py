@@ -16,7 +16,7 @@ MODEL_NAME = os.environ.get("MODEL_NAME", "google/vit-base-patch16-224")
 TOP_K_DEFAULT = int(os.environ.get("TOP_K", "10"))
 FONTS_DIR = os.environ.get("FONTS_DIR")
 
-app = FastAPI(title="Hanzi Similarity API", version="0.2.0")
+app = FastAPI(title="Hanzi Similarity API", version="0.3.0")
 
 # Globals
 vector_db: ChromaVectorDB | None = None
@@ -33,15 +33,31 @@ class QueryUnicode(BaseModel):
     top_k: int | None = None
 
 
+class BatchQueryChar(BaseModel):
+    chars: List[str]  # 批量字符列表
+    top_k: int | None = None
+
+
+class BatchQueryUnicode(BaseModel):
+    unicodes: List[str]  # 批量Unicode列表，例如 ["U+4E00", "4E01"]
+    top_k: int | None = None
+
+
 class ResultItem(BaseModel):
     char: str
     unicode: str
     distance: float
+    similarity: float  # 相似度百分比 (0-100)
 
 
 class SearchResponse(BaseModel):
     query: str
     results: List[ResultItem]
+
+
+class BatchSearchResponse(BaseModel):
+    queries: List[str]
+    results: List[List[ResultItem]]  # 每个查询对应一个结果列表
 
 
 @app.on_event("startup")
@@ -78,6 +94,17 @@ def _ensure_ready():
             raise HTTPException(503, detail="Vector database is empty. Build it with advanced_vectorizer.py first.")
     except Exception as e:
         raise HTTPException(500, detail=f"Vector DB error: {e}")
+
+
+def _calculate_similarity(distance: float) -> float:
+    """
+    计算相似度百分比，与前端保持一致
+    相似度 = max(0, min(100, (1 - distance) * 100))
+    """
+    if not isinstance(distance, (int, float)):
+        return 0.0
+    similarity = max(0.0, min(1.0, 1.0 - distance))
+    return round(similarity * 100, 1)
 
 
 def _find_similar_by_unicode_hex(uhex: str, top_k: int) -> List[ResultItem]:
@@ -127,7 +154,14 @@ def _find_similar_by_unicode_hex(uhex: str, top_k: int) -> List[ResultItem]:
             ch = chr(int(rid_s, 16))
         except Exception:
             ch = m.get("character") if isinstance(m, dict) else "?"
-        out.append(ResultItem(char=ch, unicode=f"U+{rid_s}", distance=float(dist)))
+        distance_val = float(dist)
+        similarity_val = _calculate_similarity(distance_val)
+        out.append(ResultItem(
+            char=ch, 
+            unicode=f"U+{rid_s}", 
+            distance=distance_val,
+            similarity=similarity_val
+        ))
         if len(out) >= top_k:
             break
     return out
@@ -157,6 +191,68 @@ async def search_by_unicode(payload: QueryUnicode):
     except Exception:
         ch = "?"
     return SearchResponse(query=ch, results=results)
+
+
+@app.post("/search/batch/char", response_model=BatchSearchResponse)
+async def batch_search_by_char(payload: BatchQueryChar):
+    _ensure_ready()
+    if not payload.chars:
+        raise HTTPException(400, detail="chars list cannot be empty")
+    if len(payload.chars) > 100:  # 限制批量查询数量
+        raise HTTPException(400, detail="maximum 100 characters allowed per batch")
+    
+    top_k = payload.top_k or TOP_K_DEFAULT
+    queries = []
+    results = []
+    
+    for char in payload.chars:
+        if not char or len(char) != 1:
+            raise HTTPException(400, detail=f"invalid character: '{char}' must be a single character")
+        
+        try:
+            code_hex = f"{ord(char):04X}"
+            char_results = _find_similar_by_unicode_hex(code_hex, top_k)
+            queries.append(char)
+            results.append(char_results)
+        except Exception as e:
+            # 对于无法处理的字符，返回空结果
+            queries.append(char)
+            results.append([])
+    
+    return BatchSearchResponse(queries=queries, results=results)
+
+
+@app.post("/search/batch/unicode", response_model=BatchSearchResponse)
+async def batch_search_by_unicode(payload: BatchQueryUnicode):
+    _ensure_ready()
+    if not payload.unicodes:
+        raise HTTPException(400, detail="unicodes list cannot be empty")
+    if len(payload.unicodes) > 100:  # 限制批量查询数量
+        raise HTTPException(400, detail="maximum 100 unicodes allowed per batch")
+    
+    top_k = payload.top_k or TOP_K_DEFAULT
+    queries = []
+    results = []
+    
+    for unicode_str in payload.unicodes:
+        u = unicode_str.upper().replace("U+", "").strip()
+        if not u or any(c not in '0123456789ABCDEF' for c in u):
+            raise HTTPException(400, detail=f"invalid unicode hex: '{unicode_str}'")
+        
+        try:
+            unicode_results = _find_similar_by_unicode_hex(u, top_k)
+            try:
+                ch = chr(int(u, 16))
+            except Exception:
+                ch = "?"
+            queries.append(ch)
+            results.append(unicode_results)
+        except Exception as e:
+            # 对于无法处理的Unicode，返回空结果
+            queries.append(unicode_str)
+            results.append([])
+    
+    return BatchSearchResponse(queries=queries, results=results)
 
 
 @app.get("/healthz")
