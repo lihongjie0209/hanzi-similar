@@ -48,22 +48,30 @@ COPY chroma_db ./chroma_db
 # Copy fonts directory for SVG rendering
 COPY fonts ./fonts
 
-# Copy and set up entrypoint script with proper permissions
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
-
-# Ensure proper permissions for chroma_db directory
-RUN chmod -R 755 /app/chroma_db && \
-    chown -R root:root /app/chroma_db
-
-
-
+# Copy static files for web UI
+COPY static ./static
 
 # Copy scripts directory if it exists
 COPY scripts ./scripts
 
+# Copy and set up entrypoint script with proper permissions
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
-COPY static ./static
+# Ensure proper permissions and verify chroma_db directory
+RUN echo "=== Checking chroma_db after copy ===" && \
+    ls -la /app/ && \
+    echo "=== chroma_db contents ===" && \
+    ls -la /app/chroma_db/ && \
+    echo "=== Setting permissions ===" && \
+    chmod -R 755 /app/chroma_db && \
+    chown -R root:root /app/chroma_db && \
+    echo "=== Final verification ===" && \
+    ls -la /app/chroma_db/ && \
+    echo "=== Testing write access ===" && \
+    touch /app/chroma_db/.write_test && \
+    rm /app/chroma_db/.write_test && \
+    echo "Write test successful"
 
 # Expose default port
 EXPOSE 8000
