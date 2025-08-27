@@ -6,11 +6,14 @@ FROM python:3.13-slim AS base
 # Build-time overrides
 ARG MODEL_NAME=google/vit-base-patch16-224
 ARG TRANSFORMERS_CACHE=/models
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
+    PIP_NO_CACHE_DIR=0 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_INDEX_URL=${PIP_INDEX_URL} \
+    PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
     \
     # Default model and cache (can still be overridden at runtime)
     MODEL_NAME=${MODEL_NAME} \
