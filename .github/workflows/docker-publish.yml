@@ -89,4 +89,88 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+  deploy-cloud-run:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && success()
+    
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+    
+    - name: 配置GCP身份验证
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: 设置Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: 提取版本号
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "image_uri=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: 部署到Cloud Run
+      run: |
+        echo "🚀 开始部署到GCP Cloud Run..."
+        
+        # 部署到Cloud Run
+        gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME || 'hanzi-similar' }} \
+          --image=${{ steps.version.outputs.image_uri }} \
+          --platform=managed \
+          --region=${{ vars.GCP_REGION || 'asia-east2' }} \
+          --allow-unauthenticated \
+          --port=8000 \
+          --memory=${{ vars.CLOUD_RUN_MEMORY || '1Gi' }} \
+          --cpu=${{ vars.CLOUD_RUN_CPU || '1' }} \
+          --concurrency=${{ vars.CLOUD_RUN_CONCURRENCY || '80' }} \
+          --max-instances=${{ vars.CLOUD_RUN_MAX_INSTANCES || '10' }} \
+          --min-instances=${{ vars.CLOUD_RUN_MIN_INSTANCES || '0' }} \
+          --timeout=${{ vars.CLOUD_RUN_TIMEOUT || '300' }} \
+          --set-env-vars="MODEL_NAME=${{ vars.MODEL_NAME || 'google/vit-base-patch16-224' }},TRANSFORMERS_CACHE=/models,CHROMA_DB_PATH=/app/chroma_db" \
+          --quiet
+        
+        echo "✅ Cloud Run部署完成"
+    
+    - name: 获取服务URL
+      id: service-url
+      run: |
+        SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE_NAME || 'hanzi-similar' }} \
+          --region=${{ vars.GCP_REGION || 'asia-east2' }} \
+          --format='value(status.url)')
+        echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+        echo "🌐 服务URL: $SERVICE_URL"
+    
 
+    
+    - name: 部署总结
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        SERVICE_URL="${{ steps.service-url.outputs.url }}"
+        
+        echo "## 🌐 Cloud Run部署成功!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 部署信息" >> $GITHUB_STEP_SUMMARY
+        echo "- **版本**: \`v$VERSION\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **镜像**: \`${{ steps.version.outputs.image_uri }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **服务名**: \`${{ vars.CLOUD_RUN_SERVICE_NAME || 'hanzi-similar' }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **区域**: \`${{ vars.GCP_REGION || 'asia-east2' }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **服务URL**: [$SERVICE_URL]($SERVICE_URL)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 快速访问" >> $GITHUB_STEP_SUMMARY
+        echo "- [🌐 Web界面]($SERVICE_URL)" >> $GITHUB_STEP_SUMMARY
+        echo "- [📚 API文档]($SERVICE_URL/docs)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🧪 测试命令" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "# 健康检查" >> $GITHUB_STEP_SUMMARY
+        echo "curl $SERVICE_URL/" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# 汉字相似度搜索测试" >> $GITHUB_STEP_SUMMARY
+        echo "curl -X POST \"$SERVICE_URL/search\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "     -H \"Content-Type: application/json\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "     -d '{\"query\": \"学\", \"top_k\": 5}'" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
