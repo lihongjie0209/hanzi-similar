@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .idea
+
+scripts/gcp-config.yaml
+scripts/gcp-service-account-key.json
