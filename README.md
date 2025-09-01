@@ -4,6 +4,12 @@
 
 English: A FastAPI service to render Chinese characters, embed with ViT/CLIP, and search visually similar glyphs. Includes a clean web UI and SVG glyph rendering from local fonts.
 
+## 🌐 在线演示 | Live Demo
+
+**🔗 [https://hanzi.lihongjie.cn/ui/](https://hanzi.lihongjie.cn/ui/)**
+
+体验汉字相似度搜索功能，支持输入任意汉字查找视觉上相似的字符。
+
 ## 📋 API 文档
 
 - **🔗 OpenAPI 规范**: [openapi.yaml](./openapi.yaml) 
